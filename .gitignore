@@ -219,3 +219,6 @@ __marimo__/
 
 # Preprocessed dataset directory
 processed_data
+
+# Callback directories
+checkpoints
