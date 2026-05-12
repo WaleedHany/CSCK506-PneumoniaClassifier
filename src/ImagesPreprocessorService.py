@@ -64,7 +64,7 @@ def preprocess_image(image_path):
     resized = cv2.resize(cropped, (TARGET_SIZE, TARGET_SIZE))
 
     # Normalize pixel values
-    normalizedImages = resized / 255.0
+    normalizedImages = resized #/ 255.0
 
     return normalizedImages
 

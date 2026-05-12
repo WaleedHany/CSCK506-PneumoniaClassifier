@@ -109,3 +109,56 @@ class ResNet34(tf.keras.Model):
 
     def call(self, inputs):
         return self.stack(inputs)
+
+
+
+class EfficientNetBinaryClassifier(tf.keras.Model):
+
+    def __init__(
+        self,
+        input_shape=(224, 224, 3),
+        train_backbone=False,
+        dropout_rate=0.1,
+        **kwargs
+    ):
+        super().__init__(**kwargs)
+
+        self.backbone = tf.keras.applications.EfficientNetB0(
+            include_top=False,
+            weights="imagenet",
+            input_shape=input_shape
+        )
+
+        self.backbone.trainable = train_backbone
+
+        self.pool = tf.keras.layers.GlobalAveragePooling2D()
+
+        self.dropout = tf.keras.layers.Dropout(dropout_rate)
+
+        self.hidden = tf.keras.layers.Dense(
+            256,
+            activation="relu"
+        )
+
+        self.output_layer = tf.keras.layers.Dense(
+            1,
+            activation="sigmoid"
+        )
+
+    def call(self, inputs, training=False):
+
+        x = self.backbone(
+            inputs,
+            training=training
+        )
+
+        x = self.pool(x)
+
+        x = self.dropout(
+            x,
+            training=training
+        )
+
+        x = self.hidden(x)
+
+        return self.output_layer(x)
