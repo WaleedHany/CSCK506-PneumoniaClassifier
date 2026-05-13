@@ -118,47 +118,45 @@ class EfficientNetBinaryClassifier(tf.keras.Model):
         self,
         input_shape=(224, 224, 3),
         train_backbone=False,
-        dropout_rate=0.1,
+        dropout_rate=0.3,
+        hidden_units=128,
         **kwargs
     ):
         super().__init__(**kwargs)
 
-        self.backbone = tf.keras.applications.EfficientNetB0(
-            include_top=False,
-            weights="imagenet",
-            input_shape=input_shape
-        )
+        # EfficientNet backbone
+        self.backbone = tf.keras.applications.EfficientNetB0(include_top=False, weights="imagenet", input_shape=input_shape)
 
+        # Freeze or unfreeze backbone
         self.backbone.trainable = train_backbone
 
+        # Classification head
         self.pool = tf.keras.layers.GlobalAveragePooling2D()
 
         self.dropout = tf.keras.layers.Dropout(dropout_rate)
 
-        self.hidden = tf.keras.layers.Dense(
-            256,
-            activation="relu"
-        )
+        self.hidden = tf.keras.layers.Dense(hidden_units, activation="relu")
 
-        self.output_layer = tf.keras.layers.Dense(
-            1,
-            activation="sigmoid"
-        )
+        self.batch_norm = tf.keras.layers.BatchNormalization()
+
+        self.output_layer = tf.keras.layers.Dense(1, activation="sigmoid")
 
     def call(self, inputs, training=False):
 
-        x = self.backbone(
-            inputs,
-            training=training
-        )
+        # EfficientNet feature extraction
+        x = self.backbone(inputs, training=training)
 
+        # Convert feature maps to vector
         x = self.pool(x)
 
-        x = self.dropout(
-            x,
-            training=training
-        )
+        # Regularization
+        x = self.dropout(x, training=training)
 
+        # Hidden dense layer
         x = self.hidden(x)
 
+        # Stabilize training
+        x = self.batch_norm(x, training=training)
+
+        # Binary output
         return self.output_layer(x)
