@@ -222,3 +222,5 @@ processed_data
 
 # Callback directories
 checkpoints
+
+.DS_Store

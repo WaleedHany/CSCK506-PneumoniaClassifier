@@ -5,7 +5,7 @@ Potential list of architectures to implement:
 LeNet-5 (will very likely underperform, but worth showing for the comparison)
 VGG16
 ResNet34 (✔️)
-EfficientNet (probably the performance heavy hitter, especially if we opt to fine tune instead of train from scratch)
+EfficientNet (✔️)
 """
 
 import tensorflow as tf

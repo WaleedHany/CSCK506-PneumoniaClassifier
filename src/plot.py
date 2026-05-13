@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-from sklearn.metrics import ConfusionMatrixDisplay
+from sklearn.metrics import ConfusionMatrixDisplay, RocCurveDisplay
 
 def plot_history(history: tf.keras.callbacks.History, model_name, fig_name):
     """
@@ -42,3 +42,17 @@ def plot_confusion_matrix(cm, classes, model_name, fig_name):
     plt.tight_layout()
     plt.savefig(fig_name, dpi=150)
     plt.show()
+
+
+def plot_roc_curve(fpr, tpr, roc_auc, model_name, fig_name):
+    """
+    Plot the ROC curve, the true positive rate against the false positive rate across all decision thresholds.
+    """
+
+    fig, ax = plt.subplots(figsize=(6, 5))
+    RocCurveDisplay(fpr=fpr, tpr=tpr, roc_auc=roc_auc, name=model_name).plot(ax=ax)
+    ax.set_title(model_name, fontsize=12)
+    plt.tight_layout()
+    plt.savefig(fig_name, dpi=150)
+    plt.show()
+    
