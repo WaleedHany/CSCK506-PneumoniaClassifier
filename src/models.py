@@ -1,15 +1,74 @@
 """
 This module houses all model definitions, any configurations or hyperparameters can be passed in as arguments during class construction.
 
-Potential list of architectures to implement:
-LeNet-5 (will very likely underperform, but worth showing for the comparison)
-VGG16
-ResNet34 (✔️)
-EfficientNet (✔️)
+List of architectures to implement:
+1. Baseline CNN (✔️)
+2. VGG16
+3. ResNet34 (✔️)
+4. EfficientNet (✔️)
 """
 
 import tensorflow as tf
-from functools import partial
+
+class BaselineBlock(tf.keras.layers.Layer):
+    def __init__(self, filters, **kwargs):
+        super().__init__(**kwargs)
+
+        self.stack = tf.keras.Sequential([
+            tf.keras.layers.Conv2D(
+                filters=filters,
+                kernel_size=(3,3),
+                strides=1,
+                padding="same",
+                kernel_initializer="he_normal",
+            ),
+            tf.keras.layers.ReLU(),
+            tf.keras.layers.MaxPool2D(
+                pool_size=(2,2), # Strides defaults to pool size (2)
+                padding="valid",
+            ),
+        ])
+
+    def call(self, inputs, training=False):
+        return self.stack(inputs, training=training)
+        
+
+class BaselineCNN(tf.keras.Model):
+    """
+    This is a implementation of a naive baseline CNN comprised of:
+
+    Downsampling and feature extraction:
+    1. Conv2D (32 filters, 3x3 kernel, stride 1, ReLU)
+    2. MaxPool (2x2 kernel)
+    3. Conv2D (64 filters, 3x3 kernel, ReLU)
+    4. MaxPool (2x2 kernel)
+    
+    Classification head:
+    5. Flatten
+    6. Dense 128, ReLU
+    7. Dropout 0.2
+    8. Dense 1, Sigmoid
+
+    We'll omit batch normalisation from this architecture.
+    """
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.stack = tf.keras.Sequential([
+            BaselineBlock(filters=32), # 112 x 112, 32 feature maps
+            BaselineBlock(filters=64), # 56 x 56, 64 feature maps
+        ])
+            
+        # Classification head (flatten, linear projection, dropout, final sigmoid unit)
+        self.stack.add(tf.keras.layers.Flatten())
+        self.stack.add(tf.keras.layers.Dense(128, activation="relu"))
+        self.stack.add(tf.keras.layers.Dropout(0.2))
+        self.stack.add(tf.keras.layers.Dense(1, activation="sigmoid")) # Final classification, bounded between 0 - 1 (predicted proba)
+        
+    def call(self, inputs, training=False):
+        return self.stack(inputs, training=training)
+    
 
 class ResUnit(tf.keras.layers.Layer):
     def __init__(self, filters, strides=1, **kwargs):
@@ -54,9 +113,9 @@ class ResUnit(tf.keras.layers.Layer):
         else: # stride == 1
             self.skip_connection = tf.keras.layers.Identity() # Essentially a no-op
 
-    def call(self, inputs):
+    def call(self, inputs, training=False):
         return tf.nn.relu(
-            tf.add( self.stack(inputs), self.skip_connection(inputs) ) # Element wise tensor addition
+            tf.add( self.stack(inputs, training=training), self.skip_connection(inputs, training=training) ) # Element wise tensor addition
         )
 
 class ResNet34(tf.keras.Model):
@@ -85,7 +144,7 @@ class ResNet34(tf.keras.Model):
             tf.keras.layers.BatchNormalization(),
             tf.keras.layers.ReLU(),
             tf.keras.layers.MaxPool2D(
-                pool_size=3,
+                pool_size=(3,3),
                 strides=2,
                 padding="same",
             )
@@ -107,8 +166,8 @@ class ResNet34(tf.keras.Model):
         self.stack.add(tf.keras.layers.GlobalAveragePooling2D()) # Final feature maps = 512
         self.stack.add(tf.keras.layers.Dense(1, activation="sigmoid")) # Final classification, bounded between 0 - 1 (predicted proba)
 
-    def call(self, inputs):
-        return self.stack(inputs)
+    def call(self, inputs, training=False):
+        return self.stack(inputs, training=training)
 
 
 
@@ -118,45 +177,47 @@ class EfficientNetBinaryClassifier(tf.keras.Model):
         self,
         input_shape=(224, 224, 3),
         train_backbone=False,
-        dropout_rate=0.3,
-        hidden_units=128,
+        dropout_rate=0.1,
         **kwargs
     ):
         super().__init__(**kwargs)
 
-        # EfficientNet backbone
-        self.backbone = tf.keras.applications.EfficientNetB0(include_top=False, weights="imagenet", input_shape=input_shape)
+        self.backbone = tf.keras.applications.EfficientNetB0(
+            include_top=False,
+            weights="imagenet",
+            input_shape=input_shape
+        )
 
-        # Freeze or unfreeze backbone
         self.backbone.trainable = train_backbone
 
-        # Classification head
         self.pool = tf.keras.layers.GlobalAveragePooling2D()
 
         self.dropout = tf.keras.layers.Dropout(dropout_rate)
 
-        self.hidden = tf.keras.layers.Dense(hidden_units, activation="relu")
+        self.hidden = tf.keras.layers.Dense(
+            256,
+            activation="relu"
+        )
 
-        self.batch_norm = tf.keras.layers.BatchNormalization()
-
-        self.output_layer = tf.keras.layers.Dense(1, activation="sigmoid")
+        self.output_layer = tf.keras.layers.Dense(
+            1,
+            activation="sigmoid"
+        )
 
     def call(self, inputs, training=False):
 
-        # EfficientNet feature extraction
-        x = self.backbone(inputs, training=training)
+        x = self.backbone(
+            inputs,
+            training=training
+        )
 
-        # Convert feature maps to vector
         x = self.pool(x)
 
-        # Regularization
-        x = self.dropout(x, training=training)
+        x = self.dropout(
+            x,
+            training=training
+        )
 
-        # Hidden dense layer
         x = self.hidden(x)
 
-        # Stabilize training
-        x = self.batch_norm(x, training=training)
-
-        # Binary output
         return self.output_layer(x)

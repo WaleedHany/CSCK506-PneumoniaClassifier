@@ -1,8 +1,9 @@
 numpy
 matplotlib
-Pillow
+pillow
 opencv-python
 scikit-learn
 jupyter
 kagglehub
 tensorflow
+opencv-python
